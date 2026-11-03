@@ -9,30 +9,27 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
+useEffect(() => {
     async function fetchData() {
-      // 1. ログイン状態の確認
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
-      setUser(session.user)
+      try {
+        const { data, error } = await supabase
+          .from('video_metrics')
+          .select('*')
 
-      // 2. Supabaseの video_metrics テーブルからデータを取得
-      const { data, error } = await supabase
-        .from('video_metrics')
-        .select('*')
-
-      if (error) {
-        console.error('データ取得エラー:', error.message)
-      } else {
-        setMetrics(data || [])
+        if (error) {
+          console.error('データ取得エラー:', error.message)
+        } else {
+          setMetrics(data || [])
+        }
+      } catch (err) {
+        console.error('予期せぬエラー:', err)
+      } finally {
+        // 成功しても失敗しても、ここで必ず読み込み中を解除する
+        setLoading(false)
       }
-      setLoading(false)
     }
     fetchData()
-  }, [router])
+  }, [])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
