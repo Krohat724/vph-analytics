@@ -1,47 +1,19 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from './supabaseClient'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@supabase/supabase-js'
 
-export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [metrics, setMetrics] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
+// 非同期のサーバーコンポーネントとして直接データを取得する
+export default async function Dashboard() {
+  // サーバー側で安全にSupabaseクライアントを初期化
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabase = createClient(supabaseUrl, supabaseKey)
 
-useEffect(() => {
-    async function fetchData() {
-      try {
-        const { data, error } = await supabase
-          .from('video_metrics')
-          .select('*')
+  // サーバーサイドで直接データを取得（ローディング状態の管理は不要）
+  const { data: metrics, error } = await supabase
+    .from('video_metrics')
+    .select('*')
 
-        if (error) {
-          console.error('データ取得エラー:', error.message)
-        } else {
-          setMetrics(data || [])
-        }
-      } catch (err) {
-        console.error('予期せぬエラー:', err)
-      } finally {
-        // 成功しても失敗しても、ここで必ず読み込み中を解除する
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 text-white">
-        <p>読み込み中...</p>
-      </div>
-    )
+  if (error) {
+    console.error('データ取得エラー:', error.message)
   }
 
   return (
@@ -49,46 +21,17 @@ useEffect(() => {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">VPH Analytics ダッシュボード</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-sm font-bold transition duration-200"
-          >
-            ログアウト
-          </button>
         </div>
 
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-          <p className="text-gray-300 mb-2">ログイン中のアカウント:</p>
-          <p className="font-mono text-blue-400">{user?.email}</p>
-        </div>
-
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold mb-4">YouTubeデータ一覧 (VPH & エンゲージメント)</h2>
-          {metrics.length === 0 ? (
-            <p className="text-gray-400">データがまだありません。Supabaseにデータを追加してください。</p>
+        {/* 取得したデータの表示確認 */}
+        <div className="bg-gray-800 p-6 rounded-lg shadow border border-gray-700">
+          <h2 className="text-xl font-semibold mb-4 text-gray-200">取得データ一覧</h2>
+          {error ? (
+            <p className="text-red-400">エラーが発生しました: {error.message}</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-700 text-gray-400">
-                    <th className="py-3 px-4">チャンネル名</th>
-                    <th className="py-3 px-4">動画タイトル</th>
-                    <th className="py-3 px-4">VPH</th>
-                    <th className="py-3 px-4">エンゲージメント率</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {metrics.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-700 hover:bg-gray-750">
-                      <td className="py-3 px-4">{item.channel_name}</td>
-                      <td className="py-3 px-4">{item.video_title}</td>
-                      <td className="py-3 px-4 text-blue-400 font-bold">{item.vph}</td>
-                      <td className="py-3 px-4 text-green-400 font-bold">{item.engagement_rate}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <pre className="bg-gray-900 p-4 rounded text-xs text-green-400 overflow-auto max-h-96">
+              {JSON.stringify(metrics || [], null, 2)}
+            </pre>
           )}
         </div>
       </div>
