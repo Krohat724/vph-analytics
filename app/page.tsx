@@ -1,26 +1,28 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-export default function Dashboard() {
-  const [metrics, setMetrics] = useState<any[]>([])
+export default function Page() {
+  const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      setErrorMessage('環境変数が設定されていません')
+      setLoading(false)
+      return
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
     async function fetchData() {
       try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-        if (!supabaseUrl || !supabaseKey) {
-          throw new Error('Supabaseの環境変数が設定されていません')
-        }
-
-        const supabase = createClient(supabaseUrl, supabaseKey)
-
-        const { data, error } = await supabase
+        const { data: resData, error } = await supabase
           .from('video_metrics')
           .select('*')
 
@@ -28,12 +30,11 @@ export default function Dashboard() {
           throw error
         }
 
-        setMetrics(data || [])
+        setData(resData || [])
       } catch (err: any) {
-        console.error('データ取得エラー:', err.message)
-        setErrorMsg(err.message)
+        console.error('取得エラー:', err.message)
+        setErrorMessage(err.message)
       } finally {
-        // 成功しても失敗しても必ずローディングを解除する
         setLoading(false)
       }
     }
@@ -43,30 +44,30 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <p className="text-lg animate-pulse">読み込み中...</p>
+      <div style={{ backgroundColor: '#111827', color: '#fff', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p style={{ fontSize: '18px' }}>読み込み中...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">VPH Analytics ダッシュボード</h1>
-        </div>
-
-        <div className="bg-gray-800 p-6 rounded-lg shadow border border-gray-700">
-          <h2 className="text-xl font-semibold mb-4 text-gray-200">取得データ一覧</h2>
-          {errorMsg ? (
-            <p className="text-red-400">エラーが発生しました: {errorMsg}</p>
-          ) : (
-            <pre className="bg-gray-900 p-4 rounded text-xs text-green-400 overflow-auto max-h-96">
-              {JSON.stringify(metrics, null, 2)}
+    <main style={{ backgroundColor: '#111827', color: '#fff', minHeight: '100vh', padding: '32px', fontFamily: 'sans-serif' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>VPH Analytics ダッシュボード</h1>
+        
+        {errorMessage ? (
+          <div style={{ backgroundColor: '#7F1D1D', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+            <p>エラーが発生しました: {errorMessage}</p>
+          </div>
+        ) : (
+          <div style={{ backgroundColor: '#1F2937', padding: '24px', borderRadius: '8px', border: '1px solid #374151' }}>
+            <p style={{ marginBottom: '12px', color: '#34D399', fontWeight: 'bold' }}>✓ Supabaseとの接続に成功しました（取得件数: {data.length}件）</p>
+            <pre style={{ backgroundColor: '#111827', padding: '16px', borderRadius: '6px', overflow: 'auto', maxHeight: '400px', fontSize: '12px', color: '#E5E7EB' }}>
+              {JSON.stringify(data, null, 2)}
             </pre>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   )
 }
