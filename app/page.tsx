@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
+export const dynamic = 'force-dynamic'
 // 非同期のサーバーコンポーネントとして直接データを取得する
 export default async function Dashboard() {
   // サーバー側で安全にSupabaseクライアントを初期化
