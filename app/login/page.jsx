@@ -1,64 +1,75 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from './/supabaseClient'
-import { useRouter } from 'next/navigation'
 
-export default function Dashboard() {
-  const [user, setUser] = useState(null)
+export const dynamic = 'force-dynamic'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+export default function Page() {
+  const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const [errorMessage, setErrorMessage] = useState(null)
 
   useEffect(() => {
-    // ログインしているユーザーの情報を取得する
-    async function checkUser() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        // ログインしていなかったらログイン画面へ強制送還
-        router.push('/login')
-      } else {
-        setUser(session.user)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      setErrorMessage('環境変数が設定されていません')
+      setLoading(false)
+      return
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    async function fetchData() {
+      try {
+        const { data: resData, error } = await supabase
+          .from('video_metrics')
+          .select('*')
+
+        if (error) {
+          throw error
+        }
+
+        setData(resData || [])
+      } catch (err) {
+        console.error('取得エラー:', err.message)
+        setErrorMessage(err.message)
+      } finally {
         setLoading(false)
       }
     }
-    checkUser()
-  }, [router])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
+    fetchData()
+  }, [])
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-900 text-white">
-        <p>読み込み中...</p>
+      <div style={{ backgroundColor: '#111827', color: '#fff', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p style={{ fontSize: '18px' }}>読み込み中...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">VPH Analytics ダッシュボード</h1>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-sm font-bold transition duration-200"
-          >
-            ログアウト
-          </button>
-        </div>
-
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-          <p className="text-gray-300 mb-2">ログイン中のアカウント:</p>
-          <p className="font-mono text-blue-400 mb-6">{user?.email}</p>
-          
-          <div className="border-t border-gray-700 pt-6">
-            <h2 className="text-xl font-semibold mb-4">YouTubeデータ分析</h2>
-            <p className="text-gray-400">ここにリアルタイムのVPHやエンゲージメントのグラフが表示されます。</p>
+    <main style={{ backgroundColor: '#111827', color: '#fff', minHeight: '100vh', padding: '32px', fontFamily: 'sans-serif' }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '16px' }}>VPH Analytics ダッシュボード</h1>
+        
+        {errorMessage ? (
+          <div style={{ backgroundColor: '#7F1D1D', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
+            <p>エラーが発生しました: {errorMessage}</p>
           </div>
-        </div>
+        ) : (
+          <div style={{ backgroundColor: '#1F2937', padding: '24px', borderRadius: '8px', border: '1px solid #374151' }}>
+            <p style={{ marginBottom: '12px', color: '#34D399', fontWeight: 'bold' }}>✓ Supabaseとの接続に成功しました（取得件数: {data.length}件）</p>
+            <pre style={{ backgroundColor: '#111827', padding: '16px', borderRadius: '6px', overflow: 'auto', maxHeight: '400px', fontSize: '12px', color: '#E5E7EB' }}>
+              {JSON.stringify(data, null, 2)}
+            </pre>
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   )
 }
